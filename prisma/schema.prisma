@@ -1,0 +1,155 @@
+// Lược đồ Prisma của ứng dụng theo dõi đơn ứng tuyển.
+// Quan hệ dữ liệu: người dùng (1) -> nhiều đơn ứng tuyển -> nhiều buổi phỏng vấn.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------
+// Các kiểu liệt kê
+// ------------------------------
+
+enum ApplicationStatus {
+  APPLIED
+  REVIEWING
+  INTERVIEWING
+  AWAITING_RESULT
+  OFFER
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum InterviewType {
+  HR
+  ONLINE_ASSESSMENT
+  TECHNICAL
+  MANAGER
+  FINAL
+  OTHER
+}
+
+enum InterviewResult {
+  PENDING
+  PASSED
+  FAILED
+  CANCELLED
+  NO_SHOW
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+// ------------------------------
+// Các mô hình dữ liệu
+// ------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  avatarUrl    String?  @map("avatar_url")
+  passwordHash String   @map("password_hash")
+  sessionVersion Int     @default(0) @map("session_version")
+  theme        Theme    @default(SYSTEM)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  applications Application[]
+
+  @@map("users")
+}
+
+model AuthRateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @map("window_start")
+  expiresAt   DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("auth_rate_limits")
+}
+
+model Application {
+  id              String            @id @default(cuid())
+  userId          String            @map("user_id")
+  company         String
+  position        String
+  location        String?
+  salary          String?
+  jobUrl          String?           @map("job_url")
+  priority        Priority          @default(MEDIUM)
+  status          ApplicationStatus @default(APPLIED)
+  appliedDate     DateTime          @map("applied_date")
+  deadline        DateTime?
+  // Ghi chú tự đánh giá cho đơn ứng tuyển, chẳng hạn lý do chưa phù hợp hoặc
+  // kiến thức còn thiếu. Mỗi đơn có một trường văn bản riêng, không phải danh sách
+  // và độc lập với tính năng Ghi chú bên dưới.
+  experience      String?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviews Interview[]
+  notes      Note[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@map("applications")
+}
+
+model Interview {
+  id               String          @id @default(cuid())
+  applicationId    String          @map("application_id")
+  title            String
+  type             InterviewType   @default(OTHER)
+  scheduledAt      DateTime        @map("scheduled_at")
+  meetingLocation  String?         @map("meeting_location")
+  meetingUrl       String?         @map("meeting_url")
+  result           InterviewResult @default(PENDING)
+  review           String?
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  notes       Note[]
+
+  @@index([applicationId])
+  @@index([scheduledAt])
+  @@map("interviews")
+}
+
+// Ghi chú chuẩn bị của người dùng, có thể gắn với một đơn ứng tuyển (chuẩn bị
+// chung cho công việc) hoặc một buổi phỏng vấn cụ thể. Ghi chú phải có đúng một
+// liên kết; tầng nghiệp vụ kiểm tra điều kiện này vì Prisma không hỗ trợ ràng buộc
+// kiểm tra giữa nhiều cột.
+model Note {
+  id            String   @id @default(cuid())
+  applicationId String?  @map("application_id")
+  interviewId   String?  @map("interview_id")
+  title         String
+  content       String
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  interview   Interview?   @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([interviewId])
+  @@map("notes")
+}
