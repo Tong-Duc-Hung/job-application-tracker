@@ -4,7 +4,7 @@ A full-stack web application for managing job applications, interview schedules,
 
 This project was developed as a **university internship project** to practice full-stack web development, relational database design, authentication, API development, testing, and cloud deployment.
 
-**Live Demo:** [Job Application Tracker](https://job-application-tracker-3ioj5ah6b-hungs-projects-9eee1825.vercel.app)
+**Live Demo:** [Job Application Tracker](https://job-application-tracker-steel-two.vercel.app/)
 
 ### Demo Account
 
